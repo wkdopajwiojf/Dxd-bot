@@ -1,47 +1,37 @@
 import { Client, GatewayIntentBits } from "discord.js";
 import fetch from "node-fetch";
+import express from "express";
 
-const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
-const WATCH_CHANNEL_ID = process.env.WATCH_CHANNEL_ID; // channel id ที่อยาก bridge
-const RELAY_URL = process.env.RELAY_URL; // https://your-relay.onrender.com
-const RELAY_KEY = process.env.RELAY_KEY; // ต้องตรงกับ SHARED_SECRET
+// --- ENV ---
+const TOKEN = process.env.DISCORD_BOT_TOKEN;
+const CH_ID = process.env.WATCH_CHANNEL_ID;
+const RELAY_URL = process.env.RELAY_URL;
+const RELAY_KEY = process.env.RELAY_KEY;
 
-if (!DISCORD_BOT_TOKEN || !WATCH_CHANNEL_ID || !RELAY_URL || !RELAY_KEY) {
-  console.error("Missing env vars");
-  process.exit(1);
-}
-
+// --- Discord bot ---
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
+  intents:[GatewayIntentBits.Guilds,GatewayIntentBits.GuildMessages,GatewayIntentBits.MessageContent]
 });
+client.once("ready",()=>console.log("✅ Dxd bot online as",client.user.tag));
 
-client.once("ready", () => {
-  console.log("Bot ready", client.user.tag);
-});
-
-client.on("messageCreate", async (message) => {
-  // ignore bots (รวมตัวเอง)
-  if (message.author.bot) return;
-  if (message.channel.id !== WATCH_CHANNEL_ID) return;
-
-  const author = message.author.username;
-  const text = message.content;
-
-  try {
-    await fetch(`${RELAY_URL}/from-discord`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-relay-key": RELAY_KEY
+client.on("messageCreate",async m=>{
+  if(m.author.bot||m.channel.id!==CH_ID)return;
+  try{
+    await fetch(`${RELAY_URL}/from-discord`,{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "x-relay-key":RELAY_KEY
       },
-      body: JSON.stringify({ author, text })
+      body:JSON.stringify({author:m.author.username,text:m.content})
     });
-  } catch (err) {
-    console.error("Failed to POST to relay", err);
-  }
+  }catch(e){console.error("relay err",e);}
 });
 
-client.login(DISCORD_BOT_TOKEN);
+client.login(TOKEN);
 
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, "0.0.0.0", () => console.log("Relay listening on port", PORT));
+// --- Fake web server สำหรับ Render free tier ---
+const app=express();
+app.get("/",(_,res)=>res.send("Dxd bot alive ✅"));
+const PORT=process.env.PORT||10000;
+app.listen(PORT,"0.0.0.0",()=>console.log("Keepalive port",PORT));
