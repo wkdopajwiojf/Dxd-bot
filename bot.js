@@ -42,3 +42,6 @@ client.on("messageCreate", async (message) => {
 });
 
 client.login(DISCORD_BOT_TOKEN);
+
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, "0.0.0.0", () => console.log("Relay listening on port", PORT));
