@@ -1,3 +1,4 @@
+// bot.js
 import { Client, GatewayIntentBits } from "discord.js";
 import fetch from "node-fetch";
 
@@ -6,7 +7,11 @@ const RELAY_ENDPOINT = process.env.RELAY_ENDPOINT;
 const RELAY_KEY = process.env.RELAY_KEY;
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent
+  ],
 });
 
 client.on("ready", () => {
@@ -24,3 +29,22 @@ client.on("messageCreate", async (msg) => {
 
   try {
     const res = await fetch(RELAY_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-relay-key": RELAY_KEY,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (res.ok) {
+      console.log("📨 ส่งข้อความจาก Discord ไป Roblox แล้ว:", msg.content);
+    } else {
+      console.error("❌ ส่งไม่สำเร็จ:", await res.text());
+    }
+  } catch (err) {
+    console.error("🔥 ERROR:", err);
+  }
+});
+
+client.login(DISCORD_BOT_TOKEN);
