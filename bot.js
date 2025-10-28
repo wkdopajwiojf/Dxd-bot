@@ -2,39 +2,42 @@ import { Client, GatewayIntentBits } from "discord.js";
 import fetch from "node-fetch";
 
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
-const RELAY_ENDPOINT = process.env.RELAY_ENDPOINT;
-const RELAY_KEY = process.env.RELAY_KEY;
+const WATCH_CHANNEL_ID = process.env.WATCH_CHANNEL_ID; // channel id ที่อยาก bridge
+const RELAY_URL = process.env.RELAY_URL; // https://your-relay.onrender.com
+const RELAY_KEY = process.env.RELAY_KEY; // ต้องตรงกับ SHARED_SECRET
+
+if (!DISCORD_BOT_TOKEN || !WATCH_CHANNEL_ID || !RELAY_URL || !RELAY_KEY) {
+  console.error("Missing env vars");
+  process.exit(1);
+}
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
 });
 
-client.on("ready", () => {
-  console.log(`✅ Logged in as ${client.user.tag}`);
+client.once("ready", () => {
+  console.log("Bot ready", client.user.tag);
 });
 
-client.on("messageCreate", async (msg) => {
-  if (msg.author.bot || !msg.guild) return;
-  if (msg.channel.name !== "relay-chat") return;
+client.on("messageCreate", async (message) => {
+  // ignore bots (รวมตัวเอง)
+  if (message.author.bot) return;
+  if (message.channel.id !== WATCH_CHANNEL_ID) return;
 
-  const payload = {
-    author: msg.author.username,
-    text: msg.content,
-  };
+  const author = message.author.username;
+  const text = message.content;
 
   try {
-    const res = await fetch(RELAY_ENDPOINT, {
+    await fetch(`${RELAY_URL}/from-discord`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-relay-key": RELAY_KEY,
+        "x-relay-key": RELAY_KEY
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ author, text })
     });
-
-    console.log(res.ok ? "📨 ส่งข้อความแล้ว" : "❌ ส่งไม่สำเร็จ");
   } catch (err) {
-    console.error("🔥 ERROR:", err);
+    console.error("Failed to POST to relay", err);
   }
 });
 
